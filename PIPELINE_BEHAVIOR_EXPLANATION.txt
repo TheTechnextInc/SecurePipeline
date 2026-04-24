@@ -1,0 +1,212 @@
+================================================================================
+           DEVSECOPS PIPELINE BEHAVIOR EXPLANATION
+================================================================================
+
+This document explains how the pipeline success/failure logic works and how
+to properly test the platform with your own repositories.
+
+================================================================================
+SECTION 1: HOW PIPELINE SUCCESS/FAILURE IS DETERMINED
+================================================================================
+
+The platform simulates real-world DevSecOps behavior where security gates
+block deployments when vulnerabilities are detected.
+
+RULE:
+  - Pipeline PASSES when the repository has NO open critical/high vulnerabilities
+  - Pipeline FAILS when the repository has ANY open critical/high vulnerabilities
+
+This is implemented in lib/store.tsx in the runPipeline() function:
+
+  1. When you click "Run" on a pipeline, the system checks the vulnerabilities
+     array for that specific repository
+  
+  2. It filters for vulnerabilities where:
+     - repo === pipeline.repo
+     - status === "open"
+     - severity === "critical" OR severity === "high"
+  
+  3. If ANY matching vulnerabilities exist → Pipeline FAILS at Security Gate
+     If NO matching vulnerabilities exist → Pipeline PASSES all stages
+
+================================================================================
+SECTION 2: WHY YOUR PIPELINE MIGHT BE FAILING
+================================================================================
+
+The demo data includes pre-loaded vulnerabilities for "acme/webapp":
+
+  - VULN-001: SQL Injection (CRITICAL) - OPEN
+  - VULN-002: Hardcoded API Secret (CRITICAL) - OPEN
+  - VULN-003: XSS Vulnerability (HIGH) - OPEN
+  - VULN-004: IDOR (HIGH) - OPEN
+  - VULN-005: Weak Password Hashing (MEDIUM) - OPEN
+  - VULN-006: Missing Rate Limiting (MEDIUM) - OPEN
+  - VULN-007: Verbose Error Messages (LOW) - FIXED
+  - VULN-008: Missing Security Headers (LOW) - IGNORED
+
+Because acme/webapp has 4 open critical/high vulnerabilities, any pipeline
+running against that repo will FAIL.
+
+================================================================================
+SECTION 3: HOW TO MAKE A PIPELINE PASS
+================================================================================
+
+Option A: Fix the vulnerabilities
+---------------------------------
+1. Navigate to Security Scans page (/security)
+2. Find the CRITICAL and HIGH severity vulnerabilities
+3. Click "View Details" on each one
+4. Click "Fix" or "Ignore" button in the dialog
+5. Repeat for all critical/high vulnerabilities
+6. Go to Pipelines page and click "Run" - pipeline will now PASS
+
+Option B: Add a new clean repository
+------------------------------------
+1. Go to Settings → Integrations → GitHub
+2. Click "Add Repository" 
+3. Enter your repo name: "your-username/your-repo"
+4. Go to Pipelines page
+5. Click "New Pipeline"
+6. Select your newly added repository
+7. Click "Create Pipeline" then "Run"
+8. Since this repo has NO vulnerabilities, it will PASS immediately
+
+================================================================================
+SECTION 4: SONARQUBE METRICS EXPLANATION
+================================================================================
+
+The SonarQube Metrics cards on the Overview page show DYNAMIC data:
+
+  BUGS = Count of vulnerabilities with type "Injection" or "XSS"
+  VULNERABILITIES = Count of open critical/high severity vulnerabilities
+  CODE SMELLS = Count of "Security Misconfiguration" or "Information Disclosure"
+  SECURITY HOTSPOTS = Count of "Cryptography" or "Secrets" type vulnerabilities
+
+These metrics update in real-time when you:
+  - Mark vulnerabilities as fixed/ignored
+  - Trigger a rescan (adds simulated new vulnerabilities)
+  - Switch the repository filter dropdown
+  - Click the refresh button
+
+================================================================================
+SECTION 5: PIPELINE VISUALIZATION EXPLANATION
+================================================================================
+
+The Pipeline Execution visualization shows the MOST RECENT pipeline run
+for the currently selected repository.
+
+Stages:
+  [Source] → [Build] → [SAST] → [Test] → [Deploy]
+
+Stage colors:
+  - Green border = Success (stage completed)
+  - Red border = Failed (stage blocked)
+  - Blue border = Running (stage in progress)
+  - Gray border = Pending (stage waiting)
+  - Faded = Skipped (blocked by earlier failure)
+
+When a pipeline FAILS:
+  - Source, Build, SAST stages show SUCCESS (green)
+  - Security Gate (Test stage) shows FAILED (red)
+  - Deploy stage shows SKIPPED (faded gray)
+
+================================================================================
+SECTION 6: QUALITY GATE STATUS EXPLANATION
+================================================================================
+
+Quality Gates evaluate conditions against your code metrics:
+
+  - Coverage: Must be >= threshold (e.g., 80%)
+  - Duplicated Lines: Must be <= threshold (e.g., 3%)
+  - Security Rating: A=1, B=2, C=3, D=4, E=5 (lower is better)
+  - Vulnerabilities: Number of open vulnerabilities
+
+The "Sonar Way" default gate has these conditions:
+  - Coverage < 80% → FAIL (actual: 72.4%)
+  - Security Rating > 1 → FAIL (actual: 3, meaning "C")
+
+This is why the Quality Gate shows "Failed" by default.
+
+To make it pass:
+  1. Go to Quality Gates page
+  2. Remove failing conditions, OR
+  3. Create a new quality gate with lower thresholds
+
+================================================================================
+SECTION 7: REPORTS DATE FIX
+================================================================================
+
+Reports now generate with the CURRENT DATE using JavaScript's Date object:
+
+  const getRecentDate = (daysAgo: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() - daysAgo)
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+When you schedule a new report, it shows "Generating..." for 3 seconds,
+then updates to the current date (e.g., "Apr 6, 2026").
+
+================================================================================
+SECTION 8: TESTING YOUR OWN REPOSITORY
+================================================================================
+
+Step 1: Connect your repository
+  - Settings → Integrations → GitHub → Add Repository
+  - Enter: "your-username/your-repo-name"
+
+Step 2: Create a pipeline
+  - Pipelines → New Pipeline
+  - Select your repository from the dropdown
+  - Enter pipeline name (e.g., "Build & Deploy Production")
+  - Select branch (main/develop)
+  - Click "Create Pipeline"
+
+Step 3: Run the pipeline
+  - Click the "Run" button on your new pipeline
+  - Watch the stages animate (Source → Build → SAST → Test → Deploy)
+  - Since your new repo has NO vulnerabilities, it will PASS
+
+Step 4: Simulate a failure
+  - Go to Security Scans → Click "Rescan"
+  - A new vulnerability will be generated for the selected repo
+  - If it's critical/high severity, running the pipeline again will FAIL
+
+================================================================================
+SECTION 9: DATA PERSISTENCE
+================================================================================
+
+IMPORTANT: This is a DEMO/SIMULATION platform.
+
+All data is stored in React Context (client-side state):
+  - Repositories you add
+  - Pipelines you create
+  - Vulnerabilities and their status
+  - Quality gates and conditions
+  - Reports you generate
+  - Notifications
+
+DATA IS LOST when you:
+  - Refresh the browser page
+  - Close and reopen the tab
+  - Log out and log back in
+
+For production use, you would need to:
+  - Connect a real database (PostgreSQL, MySQL, etc.)
+  - Implement real SonarQube API integration
+  - Use actual GitHub webhooks for pipeline triggers
+  - Implement real user registration and authentication
+
+================================================================================
+SECTION 10: SUMMARY
+================================================================================
+
+✓ Pipeline passes = No open critical/high vulnerabilities for that repo
+✓ Pipeline fails = Has open critical/high vulnerabilities for that repo
+✓ Fix vulnerabilities in Security Scans to make pipelines pass
+✓ Add new repo with no vulnerabilities for automatic pass
+✓ SonarQube metrics are calculated from vulnerabilities array
+✓ Report dates use current system date
+✓ All data is client-side (resets on refresh)
+
+================================================================================

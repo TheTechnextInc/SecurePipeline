@@ -1,0 +1,604 @@
+================================================================================
+    DevSecOps Pipeline Visualization & Security Insights Platform
+                     COMPLETE WORKING EXPLANATION
+================================================================================
+
+Table of Contents:
+  1. Project Overview
+  2. Architecture & Technology Stack
+  3. File Structure & Responsibilities
+  4. Authentication Flow (Local Cookie-Based Auth)
+  5. Global State Management (React Context Store)
+  6. Page-by-Page Working Explanation
+     6.1 Login Page (/auth/login)
+     6.2 Sign Up Page (/auth/sign-up)
+     6.3 Overview / Dashboard (/)
+     6.4 Pipelines Page (/pipelines)
+     6.5 Security Scans Page (/security)
+     6.6 Quality Gates Page (/quality-gates)
+     6.7 Reports & Analytics Page (/reports)
+     6.8 Notifications Page (/notifications)
+     6.9 Settings Page (/settings)
+     6.10 About Page (/about)
+  7. SonarQube API Integration (Simulated)
+  8. How to Add Your Own GitHub Repository
+  9. How to Create a New Pipeline
+  10. DevSecOps Workflow Explained
+  11. Data Flow Diagram
+  12. Security Features Demonstrated
+
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+This platform is a fully interactive DevSecOps (Development + Security +
+Operations) dashboard that visualizes CI/CD pipeline stages, shows security
+checks from SonarQube, highlights failed security gates, and provides
+comprehensive security insights.
+
+It is designed to demonstrate a real-world DevSecOps workflow for:
+  - Monitoring CI/CD pipelines in real-time
+  - Tracking security vulnerabilities (SAST/DAST findings)
+  - Enforcing quality gates that block insecure deployments
+  - Generating compliance and security reports
+  - Managing integrations (GitHub, SonarQube, Webhooks)
+
+The app uses LOCAL COOKIE-BASED AUTHENTICATION with pre-configured demo
+accounts. All dashboard pages are protected - you must log in to access them.
+
+DEFAULT LOGIN CREDENTIALS:
+  Email:    admin@securepipe.dev
+  Password: Admin@123456
+
+  OR
+
+  Email:    demo@securepipe.dev
+  Password: Demo@123456
+
+
+================================================================================
+2. ARCHITECTURE & TECHNOLOGY STACK
+================================================================================
+
+Frontend Framework:   Next.js 16 (App Router)
+Language:             TypeScript
+Styling:              Tailwind CSS v4 with shadcn/ui components
+Charts:               Recharts (AreaChart, BarChart, LineChart, PieChart)
+Icons:                Lucide React
+Authentication:       Local cookie-based auth (no external services)
+State Management:     React Context API (centralized global store)
+Middleware:           Next.js middleware for route protection
+
+Key Architectural Decisions:
+  - All state is centralized in /lib/store.tsx using React Context
+  - Any action on any page (add repo, run pipeline, fix vulnerability)
+    immediately reflects across ALL other pages
+  - Authentication is handled via secure HTTP-only cookies
+  - Middleware protects all routes except /auth/* pages
+  - No localStorage is used - state lives in React Context
+  - Demo data is loaded on first render to showcase the platform
+  - NO EXTERNAL SERVICES REQUIRED - works fully offline/standalone
+
+
+================================================================================
+3. FILE STRUCTURE & RESPONSIBILITIES
+================================================================================
+
+/
++-- middleware.ts                    # Route protection - checks auth cookie
++-- app/
+|   +-- layout.tsx                  # Root layout - wraps app with StoreProvider
+|   +-- page.tsx                    # Overview dashboard (protected)
+|   +-- loading.tsx                 # Suspense fallback for root
+|   +-- globals.css                 # Theme tokens, colors, fonts
+|   +-- api/
+|   |   +-- auth/
+|   |       +-- login/route.ts     # POST: authenticate user, set cookie
+|   |       +-- logout/route.ts    # POST: clear auth cookie
+|   +-- auth/
+|   |   +-- login/page.tsx         # Email + password login form
+|   |   +-- sign-up/page.tsx       # Sign up page (redirects to login for demo)
+|   |   +-- sign-up-success/page.tsx # Post-signup confirmation
+|   |   +-- error/
+|   |       +-- page.tsx           # Auth error display
+|   |       +-- loading.tsx        # Suspense boundary for useSearchParams
+|   +-- pipelines/
+|   |   +-- page.tsx               # CI/CD pipeline management
+|   |   +-- loading.tsx            # Suspense fallback
+|   +-- security/page.tsx          # Vulnerability findings & scanning
+|   +-- quality-gates/page.tsx     # Quality gate configuration
+|   +-- reports/page.tsx           # Analytics charts & report generation
+|   +-- notifications/page.tsx     # Alert management
+|   +-- settings/page.tsx          # Integrations, policies, webhooks
+|   +-- about/page.tsx             # Platform documentation
++-- components/
+|   +-- dashboard-sidebar.tsx      # Navigation sidebar with user email
+|   +-- dashboard-header.tsx       # Top header with search, refresh, repo filter
+|   +-- dashboard-layout.tsx       # Shared layout wrapper for protected pages
+|   +-- pipeline-visualization.tsx # Visual pipeline stage component
+|   +-- sonar-metrics.tsx          # SonarQube metric cards
+|   +-- coverage-chart.tsx         # Code coverage trend chart
+|   +-- quality-gate.tsx           # Quality gate status component
+|   +-- security-failures.tsx      # Vulnerability list component
+|   +-- recent-scans.tsx           # Recent scan history component
+|   +-- ui/                        # shadcn/ui component library
++-- lib/
+|   +-- auth.ts                    # Local authentication with cookies
+|   +-- store.tsx                  # Global state management (React Context)
+|   +-- utils.ts                   # Utility functions (cn for classnames)
+
+
+================================================================================
+4. AUTHENTICATION FLOW (Local Cookie-Based Auth)
+================================================================================
+
+The authentication system uses LOCAL COOKIE-BASED AUTHENTICATION with
+pre-configured demo accounts. No external services are required.
+
+DEFAULT ACCOUNTS:
+  1. Admin: admin@securepipe.dev / Admin@123456
+  2. Demo:  demo@securepipe.dev / Demo@123456
+
+FLOW:
+
+  1. User visits any page (e.g., /)
+  2. middleware.ts intercepts the request
+  3. middleware.ts calls getSession() from /lib/auth.ts
+  4. getSession() reads the securepipe_session cookie
+     - If cookie exists and is valid: allows access
+     - If no cookie or invalid: redirects to /auth/login
+
+  5. On /auth/login, user enters email and password
+  6. Form submits to server action login() in /app/auth/actions.ts
+  7. Server action calls authLogin() from /lib/auth.ts which:
+     - Validates credentials against DEFAULT_USERS array
+     - On success: sets HTTP-only cookie with user data, redirects to /
+     - On error: redirects to /auth/error?message=...
+
+  8. Sign out: sidebar has sign out button that calls signout() server action
+      - Deletes the auth cookie
+      - Redirects to /auth/login
+
+FILES INVOLVED:
+  - middleware.ts          -> Entry point for all requests
+  - lib/auth.ts            -> Core auth logic (login, logout, getSession)
+  - app/auth/actions.ts    -> Server actions for login, signout
+  - app/auth/login/page.tsx -> Login form UI with pre-filled credentials
+
+COOKIE DETAILS:
+  - Name: securepipe_session
+  - HttpOnly: true (prevents XSS attacks)
+  - Secure: true in production
+  - SameSite: lax
+  - MaxAge: 7 days
+
+
+================================================================================
+5. GLOBAL STATE MANAGEMENT (React Context Store)
+================================================================================
+
+All application state lives in /lib/store.tsx using React Context.
+
+The StoreProvider wraps the entire app in layout.tsx. Every page that needs
+data calls useStore() to access the shared state and actions.
+
+STATE INCLUDES:
+  - repositories[]         -> Connected GitHub repos
+  - pipelines[]            -> CI/CD pipeline configurations and runs
+  - vulnerabilities[]      -> Security findings from SAST scans
+  - qualityGates[]         -> Quality gate definitions and conditions
+  - notifications[]        -> System alerts and notifications
+  - reports[]              -> Generated and scheduled reports
+  - webhooks[]             -> Configured webhook endpoints
+  - sonarConfig            -> SonarQube connection settings
+  - selectedRepo           -> Current repository filter (global)
+  - searchQuery            -> Global search query
+  - activeSettingsTab      -> Currently active settings tab
+  - refreshing             -> Loading state for refresh
+  - rescanning             -> Loading state for security rescan
+
+ACTIONS (functions that modify state):
+  - addRepository()        -> Adds a GitHub repo + auto-populates demo data
+  - removeRepository()     -> Removes repo + cleans up its pipelines
+  - addPipeline()          -> Creates new pipeline for a repo
+  - runPipeline()          -> Simulates running pipeline with animated stages
+  - removePipeline()       -> Deletes a pipeline
+  - updateVulnerabilityStatus() -> Mark vuln as fixed/ignored/reopened
+  - triggerRescan()        -> 3-second scan simulation, adds new finding
+  - addQualityGate()       -> Creates custom quality gate
+  - addCondition()         -> Adds condition to a gate with random actual value
+  - removeCondition()      -> Removes condition from gate
+  - setDefaultGate()       -> Sets a gate as the default
+  - markAsRead()           -> Marks notification as read
+  - markAllAsRead()        -> Marks all notifications as read
+  - deleteNotification()   -> Removes a notification
+  - scheduleReport()       -> Generates report with 3s loading animation
+  - downloadReport()       -> Downloads report as text file
+  - addWebhook()           -> Adds webhook endpoint
+  - toggleWebhook()        -> Enables/disables webhook
+  - testSonarConnection()  -> Simulates connection test with loading state
+
+CROSS-PAGE REACTIVITY:
+  - When you add a repo in Settings, it appears in Pipeline's repo dropdown
+  - When you run a pipeline, a notification appears in Notifications
+  - When you fix a vulnerability, the overview stats update immediately
+  - When you change the repo filter in the header, ALL pages filter their data
+  - When you create a report, the report count on Reports page updates
+
+
+================================================================================
+6. PAGE-BY-PAGE WORKING EXPLANATION
+================================================================================
+
+6.1 LOGIN PAGE (/auth/login)
+-----------------------------
+WHAT IT DOES:
+  - Displays a branded login form with email and password fields
+  - Shows the "SecurePipe" logo and branding
+  - PRE-FILLS the form with default demo credentials for easy testing
+
+HOW IT WORKS:
+  - Client component with a form that calls the login() server action
+  - Shows loading spinner while authenticating
+  - On success: redirects to dashboard
+  - On error: redirects to /auth/error with error message
+
+INTERACTIVE ELEMENTS:
+  [x] Email input field (pre-filled with admin@securepipe.dev)
+  [x] Password input field (pre-filled with Admin@123456)
+  [x] "Sign In" button with loading state
+  [x] Hint text showing default credentials
+
+
+6.2 SIGN UP PAGE (/auth/sign-up)
+---------------------------------
+WHAT IT DOES:
+  - Shows sign-up form (for demonstration purposes)
+  - Since this is a demo platform, sign-up redirects to login
+
+NOTE: In a production system, you would implement real user registration
+with email verification. For this demo, use the pre-configured accounts.
+
+
+6.3 OVERVIEW / DASHBOARD (/)
+------------------------------
+WHAT IT DOES:
+  - Main dashboard showing a high-level summary of everything
+  - Stats cards: Pipelines Passed, Pipelines Failed, Critical Vulns, Quality Gate
+  - Pipeline visualization component showing stage-by-stage progress
+  - SonarQube metrics (Bugs, Vulnerabilities, Code Smells, Hotspots)
+  - Quality Gate summary with condition pass/fail indicators
+  - Coverage trend chart (area chart)
+  - Open vulnerabilities list with severity badges
+  - Recent pipeline runs with status indicators
+
+HOW IT WORKS:
+  - Pulls all data from useStore() global context
+  - Filters data based on selectedRepo (header dropdown)
+  - Stats are computed dynamically from pipelines[] and vulnerabilities[]
+  - "View in SonarQube" link opens the configured Sonar URL in new tab
+  - "View All" buttons link to detailed pages
+
+INTERACTIVE ELEMENTS:
+  [x] Refresh button in header (triggers 2s loading animation)
+  [x] Repository filter dropdown in header
+  [x] Search bar in header
+  [x] "New Pipeline" button navigates to /pipelines
+  [x] "View in SonarQube" opens external Sonar URL
+  [x] "View All" buttons link to respective detail pages
+  [x] Pipeline stage indicators with hover tooltips
+  [x] Vulnerability list with severity colors
+
+
+6.4 PIPELINES PAGE (/pipelines)
+---------------------------------
+WHAT IT DOES:
+  - Lists all CI/CD pipelines with their status and stage indicators
+  - Create new pipelines with dialog form
+  - Run, delete, and search pipelines
+  - Stats cards showing Successful, Failed, Running, Pending counts
+
+HOW IT WORKS:
+  - Displays pipelines from store, filtered by selectedRepo and search query
+  - "New Pipeline" dialog lets you pick a name, repo (from connected repos),
+    and branch
+  - "Run" button triggers the pipeline simulation:
+    1. Checks for open critical/high vulnerabilities for the repo
+    2. If vulnerabilities exist: pipeline FAILS at Security Gate
+    3. If no vulnerabilities: pipeline PASSES all stages
+    4. Notification sent with result
+  - Each pipeline shows visual stage indicators with tooltips
+
+INTERACTIVE ELEMENTS:
+  [x] Search bar (filters by name, repo, commit message)
+  [x] "New Pipeline" dialog with name, repo selector, branch selector
+  [x] Play button - runs pipeline with animated stage progression
+  [x] Trash button - deletes pipeline
+  [x] Stage indicators show tooltips on hover
+  [x] Empty state with "Create Pipeline" CTA when no results
+
+
+6.5 SECURITY SCANS PAGE (/security)
+--------------------------------------
+WHAT IT DOES:
+  - Displays all SAST/DAST vulnerability findings
+  - Security score with letter grade (A-F)
+  - Severity breakdown cards (Critical, High, Medium, Low)
+  - Filter by severity and status
+  - Export CSV, Rescan, View Details
+
+HOW IT WORKS:
+  - Pulls vulnerabilities[] from store, applies severity and status filters
+  - Security score formula: 100 - (critical*20 + high*10 + medium*5 + low*2)
+  - Export CSV creates a real CSV file and downloads it
+  - Rescan triggers 3-second animation, then adds a simulated new finding
+  - "Fix" changes status to "fixed", "Ignore" to "ignored", "Reopen" back to "open"
+  - "Details" opens a dialog with full vulnerability info
+
+INTERACTIVE ELEMENTS:
+  [x] Severity filter dropdown (All, Critical, High, Medium, Low)
+  [x] Status filter dropdown (All, Open, Fixed, Ignored)
+  [x] "Export CSV" button - downloads real vulnerability_report.csv
+  [x] "Rescan" button - 3s animation + adds new finding + notification
+  [x] "Fix" button - marks vulnerability as fixed
+  [x] "Ignore" button - marks vulnerability as ignored
+  [x] "Reopen" button - reopens fixed/ignored vulnerability
+  [x] "Details" button - opens full detail dialog
+  [x] CWE links open MITRE CWE database in new tab
+
+
+6.6 QUALITY GATES PAGE (/quality-gates)
+-----------------------------------------
+WHAT IT DOES:
+  - Manage quality gate configurations
+  - Left panel: list of gates with status badges
+  - Right panel: selected gate details with conditions
+  - Create new gates, add/remove conditions, set default
+
+HOW IT WORKS:
+  - Three default gates: "Sonar Way", "Strict Security", "Coverage Focus"
+  - Click a gate to view its details on the right
+  - Conditions show metric, threshold, actual value, and pass/fail status
+  - "Add Condition" dialog lets you pick metric, operator (</>), threshold
+  - New conditions get a random actual value and auto-evaluate pass/fail
+
+INTERACTIVE ELEMENTS:
+  [x] "Create" button - opens dialog to create new quality gate
+  [x] Gate cards - click to select and view details
+  [x] "Add Condition" button - opens metric/threshold dialog
+  [x] Trash icon on each condition - removes it
+  [x] Dropdown menu: Duplicate gate, Set as Default, Delete gate
+
+
+6.7 REPORTS & ANALYTICS PAGE (/reports)
+------------------------------------------
+WHAT IT DOES:
+  - Analytics dashboard with 4 charts:
+    1. Vulnerability Trend (stacked area chart - 6 months)
+    2. Coverage Trend (line chart - 8 weeks)
+    3. Issues by Type (donut/pie chart)
+    4. Pipeline Activity (bar chart - 7 days)
+  - Summary stats: Vulns Fixed, Pipeline Success Rate, Open Vulns, Total Pipelines
+  - Report list with download and schedule functionality
+
+HOW IT WORKS:
+  - Charts use static trend data for visualization demo
+  - Summary stats are computed from live store data
+  - "Schedule Report" dialog: enter name, select type
+    1. Report appears in list with "Generating..." status
+    2. After 3 seconds, status changes to "Ready"
+    3. Notification sent when ready
+  - "Download" creates a text file with report metadata
+
+INTERACTIVE ELEMENTS:
+  [x] All 4 charts are interactive with hover tooltips
+  [x] "Schedule Report" dialog with name and type selection
+  [x] "Download" button on each ready report
+
+
+6.8 NOTIFICATIONS PAGE (/notifications)
+------------------------------------------
+WHAT IT DOES:
+  - Lists all system notifications with type, message, source, and time
+  - Filter by type (Critical, Warning, Success, Info) and read status
+  - Mark individual or all as read, delete notifications
+
+HOW IT WORKS:
+  - Notifications are generated automatically by actions across all pages
+  - Color-coded by type: red (critical), orange (warning), green (success), blue (info)
+
+INTERACTIVE ELEMENTS:
+  [x] Type filter dropdown (All, Critical, Warning, Success, Info)
+  [x] Read status filter dropdown (All, Unread, Read)
+  [x] "Mark all as read" button
+  [x] Delete (trash) button on each notification
+
+
+6.9 SETTINGS PAGE (/settings)
+-------------------------------
+WHAT IT DOES:
+  - 5 tab navigation on the left:
+    1. Integrations - GitHub repos + SonarQube config
+    2. Notifications - Slack/Email channels + alert rules
+    3. Security Policies - Deployment blocking rules + thresholds
+    4. CI/CD Settings - Pipeline configuration defaults
+    5. Webhooks - Webhook endpoints + event triggers
+
+HOW IT WORKS:
+  - Integrations tab: Add/remove GitHub repos, configure SonarQube URL
+  - When you add a repo, it auto-populates with demo data:
+    * Creates a pipeline for the repo
+    * Adds sample vulnerabilities
+    * All metrics become available immediately
+  - When you remove a repo, all associated data is cleaned up
+
+INTERACTIVE ELEMENTS:
+  [x] "Add Repository" dialog
+  [x] Remove repository button
+  [x] SonarQube URL and token configuration
+  [x] "Test Connection" button with status feedback
+  [x] Webhook management (add, toggle, test)
+
+
+6.10 ABOUT PAGE (/about)
+--------------------------
+WHAT IT DOES:
+  - Platform documentation and feature overview
+  - Version information and technology stack
+
+
+================================================================================
+7. SONARQUBE API INTEGRATION (Simulated)
+================================================================================
+
+The platform SIMULATES SonarQube integration for demonstration purposes.
+
+In Settings → Integrations → SonarQube, you can:
+  - Enter a SonarQube server URL
+  - Enter an authentication token
+  - Click "Test Connection" to simulate connection testing
+
+The SonarQube metrics shown on the dashboard (Bugs, Vulnerabilities,
+Code Smells, Security Hotspots) are CALCULATED from the vulnerabilities
+array in the store, not fetched from a real SonarQube server.
+
+METRICS CALCULATION:
+  - Bugs = Count of "Injection" or "XSS" type vulnerabilities
+  - Vulnerabilities = Count of open critical/high severity vulns
+  - Code Smells = Count of "Security Misconfiguration" type
+  - Security Hotspots = Count of "Cryptography" or "Secrets" type
+
+
+================================================================================
+8. HOW TO ADD YOUR OWN GITHUB REPOSITORY
+================================================================================
+
+1. Navigate to Settings page (/settings)
+2. Click "Add Repository" button in the GitHub section
+3. Enter your repository name in format: "username/repo-name"
+4. Click "Add Repository"
+
+When you add a repository:
+  - It appears in the connected repositories list
+  - A new pipeline is automatically created for it
+  - Sample vulnerabilities are added for demonstration
+  - The repo appears in the header filter dropdown
+  - All pages can now filter data by this repo
+
+
+================================================================================
+9. HOW TO CREATE A NEW PIPELINE
+================================================================================
+
+1. Navigate to Pipelines page (/pipelines)
+2. Click "New Pipeline" button
+3. Fill in the dialog form:
+   - Pipeline Name (e.g., "Build & Deploy")
+   - Repository (select from connected repos)
+   - Branch (main, develop, or feature/*)
+4. Click "Create Pipeline"
+
+The new pipeline appears in the list. Click "Run" to execute it.
+
+
+================================================================================
+10. DEVSECOPS WORKFLOW EXPLAINED
+================================================================================
+
+This platform demonstrates a typical DevSecOps workflow:
+
+  [Developer Commits Code]
+           ↓
+  [CI/CD Pipeline Triggered]
+           ↓
+  [Stage 1: Source] → Clone repository
+           ↓
+  [Stage 2: Build] → Compile/bundle application
+           ↓
+  [Stage 3: SAST Scan] → Static security analysis (SonarQube)
+           ↓
+  [Stage 4: Security Gate] → Check for vulnerabilities
+           ↓
+  [DECISION POINT]
+     |
+     +-- If critical/high vulnerabilities found → BLOCK DEPLOYMENT
+     |
+     +-- If no vulnerabilities → Continue to deploy
+           ↓
+  [Stage 5: Deploy] → Deploy to production
+
+The key principle: Security issues BLOCK deployments automatically.
+This prevents vulnerable code from reaching production.
+
+
+================================================================================
+11. DATA FLOW DIAGRAM
+================================================================================
+
+                    +------------------+
+                    |   User Actions   |
+                    +--------+---------+
+                             |
+            +----------------+----------------+
+            |                |                |
+            v                v                v
+    +--------------+  +--------------+  +--------------+
+    | Add Repo     |  | Run Pipeline |  | Fix Vuln     |
+    +--------------+  +--------------+  +--------------+
+            |                |                |
+            v                v                v
+    +--------------------------------------------+
+    |           React Context Store              |
+    |  (lib/store.tsx)                           |
+    |                                            |
+    |  - repositories[]                          |
+    |  - pipelines[]                             |
+    |  - vulnerabilities[]                       |
+    |  - qualityGates[]                          |
+    |  - notifications[]                         |
+    +--------------------------------------------+
+            |
+            +---------------------------------------+
+            |                |                      |
+            v                v                      v
+    +--------------+  +--------------+  +------------------+
+    | Overview     |  | Pipelines    |  | Security Scans   |
+    | Dashboard    |  | Page         |  | Page             |
+    +--------------+  +--------------+  +------------------+
+
+
+================================================================================
+12. SECURITY FEATURES DEMONSTRATED
+================================================================================
+
+1. AUTHENTICATION
+   - Cookie-based session management
+   - HTTP-only cookies (prevents XSS)
+   - Automatic session expiration (7 days)
+   - Protected routes via middleware
+
+2. SAST (Static Application Security Testing)
+   - Vulnerability detection with severity levels
+   - CWE classification links
+   - OWASP Top 10 mapping
+
+3. SECURITY GATES
+   - Automatic deployment blocking on critical vulnerabilities
+   - Configurable quality gate conditions
+   - Pass/fail enforcement
+
+4. VULNERABILITY MANAGEMENT
+   - Track vulnerability lifecycle (Open → Fixed/Ignored)
+   - Severity-based prioritization
+   - Export reports for compliance
+
+5. COMPLIANCE REPORTING
+   - Generate security reports
+   - Track remediation metrics
+   - Audit trail via notifications
+
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
