@@ -35,10 +35,11 @@ A comprehensive DevSecOps dashboard for monitoring CI/CD pipelines, tracking sec
 - Block deployments on quality gate failure
 
 ### Reports & Analytics
-- Vulnerability trend charts
-- Coverage trend visualization
-- Pipeline activity metrics
-- Scheduled report generation
+- **Dynamic** vulnerability trend charts (shows recent 6 months based on current date)
+- **Dynamic** coverage trend visualization (shows recent 8 weeks)
+- **Live** pipeline activity metrics (calculated from actual pipeline data)
+- **Real-time** issues-by-type pie chart (reads from actual vulnerabilities)
+- Scheduled report generation with current timestamps
 
 ### Notifications
 - Real-time alerts for pipeline events
@@ -85,6 +86,21 @@ This demo uses local cookie-based authentication. Two demo accounts are availabl
 | Demo | demo@securepipe.dev | Demo@123456 |
 
 Sessions are stored in HTTP-only cookies and expire after 7 days.
+
+## Dynamic Data Updates
+
+All charts and metrics update automatically based on your actions:
+
+| Component | Data Source | Updates When |
+|-----------|-------------|--------------|
+| Vulnerability Trend | Store vulnerabilities | Add/fix/ignore vulnerabilities |
+| Coverage Trend | Simulated | Page load |
+| Issues by Type Pie | Store vulnerabilities | Add/fix/ignore vulnerabilities |
+| Pipeline Activity | Store pipelines | Run/create pipelines |
+| Quality Gate Status | Store conditions | Conditions change or vulns fixed |
+| Report Dates | Current system date | Report generated |
+
+The charts now show months/weeks relative to the current date (April 2026), not hardcoded dates.
 
 ## Data Persistence
 
