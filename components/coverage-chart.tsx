@@ -10,14 +10,14 @@ import {
 } from "recharts"
 
 const data = [
-  { date: "Jan 10", coverage: 65, threshold: 80 },
-  { date: "Jan 11", coverage: 68, threshold: 80 },
-  { date: "Jan 12", coverage: 71, threshold: 80 },
-  { date: "Jan 13", coverage: 69, threshold: 80 },
-  { date: "Jan 14", coverage: 74, threshold: 80 },
-  { date: "Jan 15", coverage: 76, threshold: 80 },
-  { date: "Jan 16", coverage: 73, threshold: 80 },
-  { date: "Jan 17", coverage: 72, threshold: 80 },
+  { date: "April 20", coverage: 65, threshold: 80 },
+  { date: "April 21", coverage: 68, threshold: 80 },
+  { date: "April 22", coverage: 71, threshold: 80 },
+  { date: "April 23", coverage: 69, threshold: 80 },
+  { date: "April 24", coverage: 74, threshold: 80 },
+  { date: "April 25", coverage: 76, threshold: 80 },
+  { date: "April 26", coverage: 73, threshold: 80 },
+  { date: "April 27", coverage: 72, threshold: 80 },
 ]
 
 export function CoverageChart() {
